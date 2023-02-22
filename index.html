@@ -1,0 +1,134 @@
+<html>
+    <head>
+        <title>Client</title>
+        <script src='/socket.io/socket.io.js'></script>
+        <script>
+                 window.onload = ()=>{
+            };
+
+            window.beforeunload = ()=>{
+                socket.emit('disconnect');
+            };
+
+            const usernameSubmitted = (e)=>{
+                userName = document.querySelector("#usernameText").value;
+				room = document.querySelector("#roomText").value;
+                if(userName && room)
+                {
+                    console.log(userName);
+                    document.querySelector("#loggedout").style.visibility = "hidden";
+                    document.querySelector("#loggedin").style.visibility = "visible";
+					document.querySelector("#room-id").innerText = room;
+					socket.emit('connectToRoom',{room:room,username:userName,sender:socket.io.engine.id});
+                }
+            };
+
+
+        </script>
+    </head>
+    <body>
+
+        <div id="loggedout">
+			<h2>Enter in chat room</h2>
+			<label>Username</label>
+            <input type="text" id="usernameText"/>
+				<br/>
+			<label>Room</label>
+			<input type="text" id="roomText"/>
+			<br/>
+            <button onclick="usernameSubmitted(event)">Start Chatting</button>
+        </div>
+
+       <div id="loggedin" style="visibility:hidden">
+			<h2>Welcome to <span id="room-id"></span></h2>
+			<textarea rows="10" cols="30" type="text" id="msgTxt" onchange="typingDone(event)" oninput="typingEvent(event)"></textarea>
+			<button onclick="sendData(event)">send</button>
+			
+			<div id="msgs-div">
+            <ul id="msgs">
+
+            </ul>
+        </div>
+		</div>
+        </div>
+
+        
+        <script>
+            var userName = "";
+			var room = "";
+            var stream = '';
+            var msgsEle = document.querySelector("#msgs");
+
+            const socket = io.connect('/');
+            socket.on('announcements',(data)=>{
+                document.querySelector('#connectionNo').innerText = data.message;
+            });
+
+            
+
+            const closeConnection = (e)=>{
+                console.log("disconnected");
+                socket.emit('disconnectionEvent',`Disconnected ${socket.id}`);
+            };
+            
+            const typingEvent = (e) => {
+                socket.emit("typing",{userName,room});
+            }
+            
+            socket.on('typing',(username)=>{
+                document.querySelector("#msg").innerText = username + " is typing...";
+            });
+
+            socket.on("sendMsg",(data)=>
+            {
+				console.log(data);
+                const {message,time,sender,room} = data;
+                
+                var msgDom = document.createElement("div");
+                msgDom.className = "chat-card";
+                msgDom.innerHTML = `<li style="margin:10px;padding:5px"><h4 style="width:25%;margin-top:5px;border:2px dashed gray;padding:5px;">${message}</h4><p style="margin:0;margin-bottom:5px;"><b>${sender}</b></p><i>${time}</i></li>`;
+
+                msgsEle.appendChild(msgDom);
+            });
+
+            socket.on('typingDone',()=>{
+                document.querySelector("#msg").innerText = "Connected";
+
+            })
+
+            // ---------------------------------------- 
+            const sendData = (e)=>{
+                var msgEle = document.getElementById("msgTxt");
+                socket.emit('sendMsg',{message:msgEle.value,sender:userName,time:new Date().toLocaleString(),room});
+                msgEle.value = "";
+            };
+
+            const typingDone = (e)=>{
+                socket.emit('typingDone',{room});
+            }
+
+            const startVideoChat = (e) => {
+                startVideo();
+            }
+
+            const startVideo = () => {
+                const data = navigator.mediaDevices.getUserMedia({
+                    video:true,
+                    audio:true
+                });
+
+                data.then((stream) => {
+                    this.stream = stream;
+                    const videoEle = document.querySelector('#localVideo');
+                    console.log(videoEle);
+                    videoEle.srcObject = stream;
+                }).catch(error=>console.error(error));
+
+            }
+
+            const stopVideoChat = (e) => {
+                this.stream.getVideoTracks()[0].enabled = false;
+            }
+        </script>
+    </body>
+</html>
